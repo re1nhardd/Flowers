@@ -33,7 +33,7 @@ function carePage(){
  const today=CareModel.dayKey(new Date()),all=CareModel.tasksForDay(garden,today,today);
  main.innerHTML=`<div class="page-heading"><div class="eyebrow muted" style="margin-bottom:13px">${new Date().toLocaleDateString('ru',{day:'numeric',month:'long',weekday:'long'})}</div><h1>Забота на сегодня</h1><p>Маленькие дела для каждого растения.</p></div>${garden.length?garden.map(p=>{
  const tasks=all.filter(t=>t.plant.id===p.id),done=tasks.filter(t=>t.done).length,complete=tasks.length>0&&done===tasks.length;
- return `<section class="plant-tasks ${complete?'all-done':''}" data-plant-id="${esc(p.id)}"><div class="plant-task-heading"><div class="mini">${picture(p)}</div><div><h2>${esc(p.name)}</h2><span class="muted">${tasks.length?done+' из '+tasks.length+' выполнено':'Сегодня можно отдохнуть'}</span></div><span class="plant-medal" aria-label="${complete?'Все задачи выполнены':''}">${complete?'✿':''}</span></div>${tasks.map(t=>`<div class="care-row task-row ${t.done?'task-done':''}"><div class="task-symbol">${icon(t.icon)}</div><div class="task-copy"><h3>${esc(t.title)}</h3><p>${esc(t.hint)}</p></div><button class="task-check" role="checkbox" aria-checked="${t.done}" aria-label="${esc(t.title+' — '+p.name)}" data-action="care-toggle" data-id="${esc(p.id)}" data-token="${t.token}">${t.done?'✓':''}</button></div>`).join('')}${complete?'<div class="plant-reward">✧ Вся забота на сегодня подарена!</div>':!tasks.length?'<p class="rest-note">Всё в своём ритме. Новые задачи появятся в нужный день.</p>':''}</section>`;
+ return `<section class="plant-tasks ${complete?'all-done':''}" data-plant-id="${esc(p.id)}"><div class="plant-task-heading"><div class="mini">${picture(p)}</div><div><h2>${esc(p.name)}</h2><span class="muted">${tasks.length?done+' из '+tasks.length+' выполнено':'Сегодня можно отдохнуть'}</span></div><span class="plant-medal" aria-label="${complete?'Все задачи выполнены':''}">${complete?'✿':''}</span></div>${tasks.map(t=>`<div class="care-row task-row ${t.done?'task-done':''}"><div class="task-symbol">${icon(t.icon)}</div><div class="task-copy"><h3>${esc(t.title)}</h3><p>${esc(t.hint)}</p></div><button class="task-check" role="checkbox" aria-checked="${t.done}" aria-label="${esc(t.title+' — '+p.name)}" data-action="care-toggle" data-id="${esc(p.id)}" data-token="${t.token}">${t.done?'✓':''}</button></div>`).join('')}${tasks.length?`<div class="plant-reward" aria-hidden="${!complete}">✧ Вся забота на сегодня подарена!</div>`:'<p class="rest-note">Всё в своём ритме. Новые задачи появятся в нужный день.</p>'}</section>`;
  }).join(''):empty('Забота начинается с сада','Добавьте растение — и здесь появятся<br>его задачи на день.')}`;
 }
 function celebratePlant(id){
@@ -43,6 +43,22 @@ function celebratePlant(id){
  burst.innerHTML=Array.from({length:12},(_,i)=>`<span style="--x:${Math.cos(i*Math.PI/6)*110}px;--y:${Math.sin(i*Math.PI/6)*90-30}px;--r:${i*45}deg">${i%3?'✦':'✿'}</span>`).join('');
  section.append(burst);setTimeout(()=>{burst.remove();section.classList.remove('celebrate');},1400);
  toast('Забота завершена — '+(lookup(id)?.name||'растение')+' благодарит вас ✿');
+}
+function updatePlantTasks(plant){
+ const section=[...main.querySelectorAll('[data-plant-id]')].find(el=>el.dataset.plantId===plant.id);
+ if(!section)return false;
+ const today=CareModel.dayKey(new Date()),tasks=CareModel.tasksForDay([plant],today,today);
+ const done=tasks.filter(t=>t.done).length,complete=tasks.length>0&&done===tasks.length;
+ for(const button of section.querySelectorAll('[data-action="care-toggle"]')){
+  const task=tasks.find(t=>t.token===button.dataset.token);if(!task)continue;
+  button.setAttribute('aria-checked',String(task.done));button.textContent=task.done?'✓':'';
+  button.closest('.task-row').classList.toggle('task-done',task.done);
+ }
+ section.querySelector('.plant-task-heading .muted').textContent=done+' из '+tasks.length+' выполнено';
+ section.classList.toggle('all-done',complete);
+ const medal=section.querySelector('.plant-medal');medal.textContent=complete?'✿':'';medal.setAttribute('aria-label',complete?'Все задачи выполнены':'');
+ const reward=section.querySelector('.plant-reward');if(reward)reward.setAttribute('aria-hidden',String(!complete));
+ return complete;
 }
 async function identify(){
  if(busy||!photo)return;
@@ -94,7 +110,7 @@ case'care-toggle':{
  const p=lookup(id);if(!p)return;const today=CareModel.dayKey(new Date());const wasComplete=CareModel.tasksForDay([p],today,today).every(t=>t.done);const careDone={...(p.careDone||{})};
  if(careDone[b.dataset.token])delete careDone[b.dataset.token];else careDone[b.dataset.token]=Date.now();
  const updated={...p,careDone};b.disabled=true;
- try{await persistPlant(updated);garden=garden.map(g=>g.id===id?updated:g);carePage();if(!wasComplete&&CareModel.tasksForDay([updated],today,today).every(t=>t.done))celebratePlant(id);}
+ try{await persistPlant(updated);garden=garden.map(g=>g.id===id?updated:g);const complete=updatePlantTasks(updated);b.disabled=false;if(!wasComplete&&complete)celebratePlant(id);}
  catch{b.disabled=false;toast('Не удалось сохранить отметку.');}break;}
 case'camera':document.querySelector('#camera').click();break;case'gallery':document.querySelector('#gallery').click();break;case'identify':identify();break;case'close':modal.close();break;
 }});
