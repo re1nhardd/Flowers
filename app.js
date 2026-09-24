@@ -2,6 +2,16 @@ const icons={home:'<path d="m3 10 9-7 9 7v10H3z"/><path d="M9 20v-7h6v7"/>',leaf
 const icon=n=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[n]||icons.leaf}</svg>`;
 document.querySelectorAll('[data-icon]').forEach(e=>e.innerHTML=icon(e.dataset.icon));
 const main=document.querySelector('#main'),modal=document.querySelector('#modal');
+// Animate rendered content without delaying navigation or moving the fixed menu.
+let contentAnimation,lastAnimatedRoute=location.hash;
+new MutationObserver(()=>{
+ if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+ const samePlant=location.hash===lastAnimatedRoute&&location.hash.startsWith('#plant/');
+ const target=samePlant?(main.querySelector('.article')||main):main;
+ lastAnimatedRoute=location.hash;
+ contentAnimation?.cancel();
+ contentAnimation=target.animate([{opacity:.35,transform:'translateY(7px)'},{opacity:1,transform:'translateY(0)'}],{duration:280,easing:'cubic-bezier(.22,.61,.36,1)'});
+}).observe(main,{childList:true});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 let garden=[],configured=false,photo='',tab='about',result=null,busy=false,previousRoute='home',storageAvailable=true;
