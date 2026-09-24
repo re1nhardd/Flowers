@@ -1,0 +1,7 @@
+.env
+.env.*
+.git
+test-result.json
+*.test.js
+*.log
+node_modules

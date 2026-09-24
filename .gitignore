@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+*.log
+test-result.json
+.vercel/
+node_modules/
+public/
+
+.vercel
+.env*
